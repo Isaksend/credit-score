@@ -6,10 +6,6 @@ import numpy as np
 import json
 from pathlib import Path
 
-from pyexpat import features
-
-from app.main import predictor
-
 
 class CreditScoringPredictor:
     """Credit scoring prediction class"""
@@ -40,7 +36,7 @@ class CreditScoringPredictor:
     def predict_full(self, client_data: dict) -> dict:
         """Complete prediction"""
         # Convert to DataFrame
-        df = pd.DataFrame([features])[predictor.metadata['features']]
+        df = pd.DataFrame([client_data])[self.features]
         print("ПОДАЕМ В МОДЕЛЬ:")
         print(df.T)  # Печатает все 84 признака и значения
 
