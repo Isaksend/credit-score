@@ -1,0 +1,8 @@
+{
+  "default_probability": 100.0,
+  "default_class": 1,
+  "risk_level": "High",
+  "decision": "REJECT",
+  "credit_score": 1637.17,
+  "score_range": "300-800"
+}
