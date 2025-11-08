@@ -1,15 +1,11 @@
-from fastapi import FastAPI, HTTPException, File, UploadFile, Depends
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
 from app.predictor import CreditScoringPredictor
-from app.auth import (
-    get_current_user, get_current_admin_user, authenticate_user,
-    create_access_token, Token, LoginRequest, User, ACCESS_TOKEN_EXPIRE_MINUTES
-)
 import logging
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from fastapi import Body
 
 # Configure logging
@@ -99,41 +95,6 @@ class HealthResponse(BaseModel):
 # ENDPOINTS
 # ========================================================================
 
-@app.post("/auth/login", response_model=Token, tags=["Authentication"])
-async def login(login_data: LoginRequest):
-    """
-    Авторизация пользователя
-    
-    **Тестовые учетные данные:**
-    - admin / secret (полный доступ)
-    - user / password (ограниченный доступ)
-    """
-    user = authenticate_user(login_data.username, login_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Неверное имя пользователя или пароль"
-        )
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["username"], "role": user["role"]},
-        expires_delta=access_token_expires
-    )
-    
-    logger.info(f"User {user['username']} logged in successfully")
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-@app.get("/auth/me", tags=["Authentication"])
-async def get_me(current_user: User = Depends(get_current_user)):
-    """Получить информацию о текущем пользователе"""
-    return {
-        "username": current_user.username,
-        "role": current_user.role
-    }
-
-
 @app.get("/", tags=["General"])
 async def root():
     """Root endpoint with API information"""
@@ -141,10 +102,6 @@ async def root():
         "message": "Credit Scoring API",
         "status": "running",
         "version": "1.0.0",
-        "authentication": {
-            "login": "/auth/login",
-            "me": "/auth/me"
-        },
         "endpoints": {
             "docs": "/docs",
             "health": "/health",
@@ -161,12 +118,10 @@ TOP_FEATURES = [
     "T_EXPENDITURE_12", "R_GAMBLING", "T_HOUSING_12", "T_GROCERIES_12"
 ]
 
-@app.post("/predict_slim", tags=["Prediction"])
-async def predict_slim(user_data: dict = Body(...), current_user: User = Depends(get_current_user)):
+@app.post("/predict_slim")
+async def predict_slim(user_data: dict = Body(...)):
     """
     Принимает только 12 топ-признаков, остальные подставляет средними.
-    
-    **Требуется авторизация**
     """
     # Подгрузи средние значения всех признаков (feature_means загружаются при старте, как в прошлой инструкции)
     feature_means_only = {k: v for k, v in predictor.feature_means.items() if k in predictor.metadata['features']}
@@ -177,7 +132,6 @@ async def predict_slim(user_data: dict = Body(...), current_user: User = Depends
             features[key] = user_data[key]
     print("Собираем такой вектор:", features)
     result = predictor.predict_full(features)
-    logger.info(f"Slim prediction by {current_user.username}")
     return result
 
 @app.get("/health", response_model=HealthResponse, tags=["General"])
@@ -191,11 +145,9 @@ async def health_check():
 
 
 @app.get("/model-info", response_model=ModelInfo, tags=["Model Information"])
-async def get_model_info(current_user: User = Depends(get_current_admin_user)):
+async def get_model_info():
     """
     Get detailed model metadata and performance metrics
-    
-    **Требуется роль администратора**
 
     Returns information about:
     - Model training date
@@ -234,12 +186,20 @@ async def get_features():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/predict_slim")
+async def predict_slim(input_params: dict):
+    features = predictor.feature_means.copy()
+    for key in TOP_FEATURES:
+        if key in input_params:
+            features[key] = input_params[key]
+    result = predictor.predict_full(features)
+    return result
+
+
 @app.post("/predict", response_model=PredictionResponse, tags=["Prediction"])
-async def predict(client_data: ClientData, current_user: User = Depends(get_current_user)):
+async def predict(client_data: ClientData):
     """
     Predict credit risk and score for a single client
-    
-    **Требуется авторизация**
 
     **Required**: All 84 features must be provided in the request
 
@@ -253,7 +213,7 @@ async def predict(client_data: ClientData, current_user: User = Depends(get_curr
         # Make prediction
         result = predictor.predict_full(client_data.data)
 
-        logger.info(f"Prediction made by {current_user.username}: {result['decision']} (Score: {result['credit_score']:.2f})")
+        logger.info(f"Prediction made: {result['decision']} (Score: {result['credit_score']:.2f})")
         return result
 
     except Exception as e:
@@ -262,17 +222,15 @@ async def predict(client_data: ClientData, current_user: User = Depends(get_curr
 
 
 @app.post("/predict/default", tags=["Prediction"])
-async def predict_default_only(client_data: ClientData, current_user: User = Depends(get_current_user)):
+async def predict_default_only(client_data: ClientData):
     """
     Predict only default probability (faster than full prediction)
-    
-    **Требуется авторизация**
 
     Returns default probability and risk classification
     """
     try:
         result = predictor.predict_default(client_data.data)
-        logger.info(f"Default prediction by {current_user.username}: {result['default_probability']:.2f}%")
+        logger.info(f"Default prediction: {result['default_probability']:.2f}%")
         return result
     except Exception as e:
         logger.error(f"Default prediction error: {e}")
@@ -280,17 +238,15 @@ async def predict_default_only(client_data: ClientData, current_user: User = Dep
 
 
 @app.post("/predict/score", tags=["Prediction"])
-async def predict_score_only(client_data: ClientData, current_user: User = Depends(get_current_user)):
+async def predict_score_only(client_data: ClientData):
     """
     Predict only credit score (faster than full prediction)
-    
-    **Требуется авторизация**
 
     Returns credit score prediction
     """
     try:
         result = predictor.predict_credit_score(client_data.data)
-        logger.info(f"Score prediction by {current_user.username}: {result['credit_score']:.2f}")
+        logger.info(f"Score prediction: {result['credit_score']:.2f}")
         return result
     except Exception as e:
         logger.error(f"Score prediction error: {e}")
@@ -298,11 +254,9 @@ async def predict_score_only(client_data: ClientData, current_user: User = Depen
 
 
 @app.post("/predict/batch", tags=["Prediction"])
-async def predict_batch(request: BatchPredictionRequest, current_user: User = Depends(get_current_user)):
+async def predict_batch(request: BatchPredictionRequest):
     """
     Predict credit risk for multiple clients at once
-    
-    **Требуется авторизация**
 
     **Input**: Array of client data objects
     **Returns**: Array of predictions
@@ -323,7 +277,7 @@ async def predict_batch(request: BatchPredictionRequest, current_user: User = De
                     'error': str(e)
                 })
 
-        logger.info(f"Batch prediction by {current_user.username} completed: {len(results)} clients")
+        logger.info(f"Batch prediction completed: {len(results)} clients")
         return {
             "total": len(request.clients),
             "successful": len([r for r in results if 'error' not in r]),
