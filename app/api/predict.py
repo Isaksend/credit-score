@@ -154,10 +154,10 @@ async def predict_score(client: ClientData):
     print("credit_score:", credit_score)
     print("default_prob:", default_prob)
 
-    if default_prob > 0.8:
+    if default_prob > 0.25:
         decision = "REJECT"
         risk_level = "High"
-    elif default_prob > 0.5:
+    elif default_prob > 0.10:
         decision = "REVIEW"
         risk_level = "Medium"
     else:
