@@ -1,0 +1,2 @@
+[build]
+packages = ["build-essential", "gcc"]
