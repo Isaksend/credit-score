@@ -3,17 +3,17 @@ Credit Score Backend powers the scoring, risk assessment, and client management 
 Built with fast, secure Python technologies (FastAPI, scikit-learn), ready for real-time integration and analytics.
 
 ✨ Features
-Predict Credit Score — POST endpoint for instant credit scoring and risk probability output.
+- Predict Credit Score — POST endpoint for instant credit scoring and risk probability output.
 
-User Authentication — Secure JWT-based signup / login / user management.
+- User Authentication — Secure JWT-based signup / login / user management.
 
-Flexible Model Integration — Plug your trained ML models (scikit-learn, pickle, etc).
+- Flexible Model Integration — Plug your trained ML models (scikit-learn, pickle, etc).
 
-Feature Selection & Engineering — Select features, blend with means, auto-calculate ratios.
+- Feature Selection & Engineering — Select features, blend with means, auto-calculate ratios.
 
-Modular API Design — Easy to extend, integrate, and document endpoints.
+- Modular API Design — Easy to extend, integrate, and document endpoints.
 
-Error Handling — Robust validation and clean developer responses.
+- Error Handling — Robust validation and clean developer responses.
 
 🛠️ Tech Stack
 Python 3.12+
@@ -31,8 +31,7 @@ pydantic — Data validation
 StandardScaler — Feature scaling
 
 ⚡ Quick Start
-bash
-git clone https://github.com/your-username/credit-score-backend.git
+git clone https://github.com/Isaksend/credit-score-backend.git
 cd credit-score-backend
 python3 -m venv venv
 source venv/bin/activate  # or .\venv\Scripts\activate on Windows
@@ -41,7 +40,6 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 # Open http://localhost:8000/docs for interactive API
 📁 File Structure
-text
 models/
   linear_model.pkl
   logistic_model.pkl
@@ -57,11 +55,13 @@ src/
     user.py
 requirements.txt
 README.md
+
 🔗 API Endpoints
-Method	Route	Description
-POST	/predict	Predict score + risk
-POST	/auth/signup	Register user
-POST	/auth/login	Authenticate & get JWT
+| Method | Route        | Description            |
+| ------ | ------------ | ---------------------- |
+| POST   | /predict     | Predict score + risk   |
+| POST   | /auth/signup | Register user          |
+| POST   | /auth/login  | Authenticate & get JWT |
 /predict:
 Expects client feature data as JSON. Returns predicted score, risk probability, risk level, and decision.
 
