@@ -2,6 +2,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 import numpy as np
+import pandas as pd
 import joblib
 import json
 
@@ -133,19 +134,15 @@ def preprocess_features(data: ClientData):
     return np.array(features).reshape(1, -1)
 
 def make_full_vector(input_dict):
+    # Приводим ключи к верхнему регистру
+    input_dict_upper = {k.upper(): v for k, v in input_dict.items()}
     features = feature_means.copy()
-    features.update(input_dict)
-    ordered = []
-    for k in features_for_model:
-        v = features.get(k)
-        if not isinstance(v, (int, float)):
-            raise ValueError(f"Feature '{k}' is missing or not a number: {v}")
-        ordered.append(v)
+    features.update(input_dict_upper)
+    ordered = [features[k] for k in features_for_model]
+    print("Features for predict (ordered):", ordered)  # DEBUG
     arr = np.array(ordered).reshape(1, -1)
     arr_scaled = scaler.transform(arr)
     return arr_scaled
-
-
 
 
 @router.post("/predict")
@@ -153,6 +150,10 @@ async def predict_score(client: ClientData):
     features = make_full_vector(client.dict())
     credit_score = float(linear_model.predict(features)[0])
     default_prob = float(logistic_model.predict_proba(features)[0][1])
+
+    print("credit_score:", credit_score)
+    print("default_prob:", default_prob)
+
     if default_prob > 0.8:
         decision = "REJECT"
         risk_level = "High"
@@ -170,4 +171,6 @@ async def predict_score(client: ClientData):
             "decision": decision
         }
     }
+    print("Features for predict (after update):", features)
+
 
