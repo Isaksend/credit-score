@@ -6,7 +6,6 @@ import numpy as np
 import json
 from pathlib import Path
 
-
 class CreditScoringPredictor:
     """Credit scoring prediction class"""
 
